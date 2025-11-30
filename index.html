@@ -188,23 +188,31 @@
       }catch(err){ console.error(err); resultEl.innerHTML=`<div class="error">خطأ: ${err.message}</div>`; }
     }
 
-    function showResultRow(row){
-      if(!row){ resultEl.innerHTML='<div class="error">لم يتم العثور على الطالب بالرقم المدخل.</div>'; return; }
-      const wanted=['الرقم القومى','اسم الطالب','لغة عربية','رياضيات','انجليزي','علوم','دراسات','قران','تربية دينية','المجموع'];
-      let tableHtml='<table><thead><tr>';
-      wanted.forEach(h=>{ if(indexByHeader[h]!==undefined) tableHtml+=`<th>${h}</th>`; });
-      tableHtml+='</tr></thead><tbody><tr>';
-      wanted.forEach(h=>{ if(indexByHeader[h]!==undefined) tableHtml+=`<td>${row[indexByHeader[h]]||''}</td>`; });
-      tableHtml+='</tr></tbody></table>';
-      resultEl.innerHTML=tableHtml;
-    }
+   function showResultRow(row){
+  if(!row){ 
+    resultEl.innerHTML = '<div class="error">لم يتم العثور على الطالب بالرقم المدخل.</div>'; 
+    return; 
+  }
 
-    searchBtn.addEventListener('click',()=>{
-      const nid=(nidInput.value||'').replace(/\s+/g,'').trim();
-      if(!nid){ resultEl.innerHTML='<div class="error">من فضلك ادخل الرقم القومي.</div>'; return; }
-      const row=lookupByNid[nid];
-      showResultRow(row);
-    });
+  let tableHtml = '<table><thead><tr>';
+  headers.forEach(h => { tableHtml += `<th>${h}</th>`; });
+  tableHtml += '</tr></thead><tbody><tr>';
+  headers.forEach(h => { tableHtml += `<td>${row[indexByHeader[h]] || ''}</td>`; });
+  tableHtml += '</tr></tbody></table>';
+  resultEl.innerHTML = tableHtml;
+}
+
+  searchBtn.addEventListener('click', async () => {
+  const nid = (nidInput.value || '').replace(/\s+/g,'').trim();
+  if(!nid){ resultEl.innerHTML = '<div class="error">من فضلك ادخل الرقم القومي.</div>'; return; }
+  
+  // تحميل الشيت كل مرة قبل البحث
+  await loadSheet();
+
+  const row = lookupByNid[nid];
+  showResultRow(row);
+});
+
 
     nidInput.addEventListener('keydown',(e)=>{ if(e.key==='Enter') searchBtn.click(); });
 
