@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ar">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>نتيجة مدرسة الرحاب الخاصة</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Tahoma, Arial;
+      direction: rtl;
+      padding: 20px;
+      background: linear-gradient(to bottom, #cce0f0, #f5f7fb);
+    }
+
+    .card {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.12);
+      padding: 30px;
+      max-width: 950px;
+      margin: 40px auto;
+      transition: all 0.3s ease;
+    }
+
+    h1 {
+      margin: 0 0 25px 0;
+      font-size: 26px;
+      color: #0b4b6f;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      margin-bottom: 25px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    input[type="text"] {
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid #b0c7d8;
+      min-width: 260px;
+      font-size: 16px;
+      transition: all 0.2s ease;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #0b79a6;
+      box-shadow: 0 0 10px rgba(11,121,166,0.25);
+    }
+
+    button {
+      padding: 14px 22px;
+      border-radius: 12px;
+      border: none;
+      background: #0b79a6;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 16px;
+      transition: all 0.3s ease;
+    }
+
+    button:hover {
+      background: #095b7c;
+      transform: translateY(-2px);
+    }
+
+    .result {
+      margin-top: 25px;
+      overflow-x: auto;
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 15px;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    }
+
+    th, td {
+      padding: 14px;
+      border: 1px solid #e6eef5;
+      text-align: center;
+    }
+
+    th {
+      background: #0b79a6;
+      color: white;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #f0f9fc;
+    }
+
+    tbody tr:hover {
+      background: #d6edf8;
+      transition: background 0.2s;
+    }
+
+    .small {
+      font-size: 13px;
+      color: #555;
+      margin-top: 12px;
+      text-align: center;
+    }
+
+    .error {
+      color: #b00020;
+      font-weight: 700;
+      margin-top: 12px;
+      text-align: center;
+    }
+
+    @media(max-width:600px){
+      .controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      input[type="text"] {
+        width: 100%;
+      }
+      table {
+        font-size: 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>نتيجة الطلاب — مدرسة الرحاب الخاصة</h1>
+
+    <div class="controls">
+      <label for="nid" class="small">اكتب الرقم القومي للطالب:</label>
+      <input id="nid" type="text" placeholder=" " inputmode="numeric" />
+      <button id="searchBtn">عرض النتيجة</button>
+    </div>
+
+    <div id="result" class="result" aria-live="polite"></div>
+
+  </div>
+
+  <script>
+    const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ89oJcBhSmmlo4MaMk6v5goSiNq68VFOvhDD-ZnS-sHGC7GedUePTlnxXSIraHl48c32D93nNJhZnQ/pub?gid=0&single=true&output=csv';
+    const resultEl = document.getElementById('result');
+    const searchBtn = document.getElementById('searchBtn');
+    const nidInput = document.getElementById('nid');
+
+    let headers=[], rows=[], indexByHeader={}, lookupByNid={};
+
+    function cleanCell(s){ if(!s && s!==0) return ''; s=String(s).trim(); if(s.length>=2 && s[0]==='"' && s[s.length-1]==='"'){ s=s.slice(1,-1).replace(/""/g,'"'); } return s; }
+    function parseCSV(text){ const lines=text.split(/\r?\n/).filter(l=>l.trim()!==''); return lines.map(line=>{ const result=[]; let cur='', inQuotes=false; for(let i=0;i<line.length;i++){ const ch=line[i]; if(ch==='\"'&&line[i+1]==='\"'){ cur+='"'; i++; continue;} if(ch==='\"'){inQuotes=!inQuotes; continue;} if(ch===','&&!inQuotes){result.push(cur); cur=''; continue;} cur+=ch; } result.push(cur); return result.map(cleanCell); }); }
+
+    async function loadSheet(){
+      try{
+        const resp=await fetch(SHEET_CSV);
+        if(!resp.ok) throw new Error('فشل في جلب الشيت');
+        const text=await resp.text();
+        const parsed=parseCSV(text);
+        if(parsed.length<1) throw new Error('الشيت فارغ أو لم يتم التعرف عليه');
+
+        headers=parsed[0].map(h=>h.replace(/\u200E|\u200F/g,'').trim());
+        rows=parsed.slice(1);
+
+        indexByHeader={};
+        headers.forEach((h,i)=>indexByHeader[h]=i);
+
+        const nidColumnName='الرقم القومى';
+        const nidIndex=indexByHeader[nidColumnName]!==undefined?indexByHeader[nidColumnName]:0;
+
+        lookupByNid={};
+        rows.forEach(r=>{ const nid=(r[nidIndex]||'').replace(/\s+/g,'').trim(); if(nid) lookupByNid[nid]=r; });
+      }catch(err){ console.error(err); resultEl.innerHTML=`<div class="error">خطأ: ${err.message}</div>`; }
+    }
+
+    function showResultRow(row){
+      if(!row){ resultEl.innerHTML='<div class="error">لم يتم العثور على الطالب بالرقم المدخل.</div>'; return; }
+      const wanted=['الرقم القومى','اسم الطالب','لغة عربية','رياضيات','انجليزي','علوم','دراسات','قران','تربية دينية','المجموع'];
+      let tableHtml='<table><thead><tr>';
+      wanted.forEach(h=>{ if(indexByHeader[h]!==undefined) tableHtml+=`<th>${h}</th>`; });
+      tableHtml+='</tr></thead><tbody><tr>';
+      wanted.forEach(h=>{ if(indexByHeader[h]!==undefined) tableHtml+=`<td>${row[indexByHeader[h]]||''}</td>`; });
+      tableHtml+='</tr></tbody></table>';
+      resultEl.innerHTML=tableHtml;
+    }
+
+    searchBtn.addEventListener('click',()=>{
+      const nid=(nidInput.value||'').replace(/\s+/g,'').trim();
+      if(!nid){ resultEl.innerHTML='<div class="error">من فضلك ادخل الرقم القومي.</div>'; return; }
+      const row=lookupByNid[nid];
+      showResultRow(row);
+    });
+
+    nidInput.addEventListener('keydown',(e)=>{ if(e.key==='Enter') searchBtn.click(); });
+
+    loadSheet();
+  </script>
+</body>
+</html>
